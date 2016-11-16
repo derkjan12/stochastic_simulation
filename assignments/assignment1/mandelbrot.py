@@ -30,31 +30,47 @@ class Sample():
 
         return [complex(*point) for point in list(points)] 
 
-    def latin_square(self, num_points):
+    @staticmethod
+    def latin_square(num_points):
         return self.position_to_points(list(zip(
             np.arange(0, num_points, 1),
             np.random.permutation(np.arange(0, num_points, 1))
         )), num_points)
         
-    def latin_orthogonal_square(self, num_points, mini_squares_len = 10):
+    @staticmethod
+    def latin_orthogonal_square(num_points, mini_squares_len = 10):
         if num_points%mini_squares_len != 0:
             raise ValueError("number_of_points must be a multiple of mini_square length")
+                
+        num_square_x = num_square_y = num_points//mini_squares_len
+       
+        first_mat = [] 
+        for i in range(num_square_x): 
+            first_mat.append(
+                np.random.permutation(
+                    np.arange(mini_squares_len*i, mini_squares_len*(i+1), 1)
+                )
+            )
         
-        number_of_squares_x = number_of_squares_y = num_points//mini_squares_len
-        x_arr = np.array([np.random.permutation(np.arange(0, mini_squares_len, 1)) 
-                         for i in range(number_of_squares_x)])
-        y_arr = np.array([np.random.permutation(np.arange(0, mini_squares_len, 1)) 
-                         for i in range(number_of_squares_y)])
-        positions = []
-        for i in range(number_of_squares):
-            for j in range(mini_square_len):
-                pos_real = j + number_of_squares*i 
-                pos_im = x_arr[i, j]*10 + y_arr[x_arr[i][j], i]
-                positions.append((pos_real, pos_im))
+        second_mat = [] 
+        points_per_bracket = mini_squares_len/num_square_y
+        for bracket in range(num_square_y):
+            row_second_mat = []
+            for row in first_mat:
+                row_second_mat.extend(row[int(bracket*points_per_bracket):int((bracket+1)*points_per_bracket)])
+            
+            second_mat.append(row_second_mat)
 
-        return self.position_to_points(positions, num_points)
+        print(second_mat)
+        positions = []
+        for i, row in enumerate(second_mat):
+            li = list(np.random.permutation(np.arange(mini_squares_len*i, mini_squares_len*(i+1), 1)))
+            positions.extend(list(zip(li, row)))
+
+        return positions
     
-    def plot_sampling(self, positions, title):
+    @staticmethod
+    def plot_sampling(positions, title):
         """plots the position given"""
         N = len(positions)        
         image =np.zeros((N, N))
@@ -169,6 +185,9 @@ def chain_length_vs_sample_points():
         np.save(f, area_estimate)
 
 def main():
+    #Sample.plot_sampling(Sample.latin_orthogonal_square(200, 40), "tada")
+    
+        
     sample_size = 50 
     sample = Sample(-2, 1, -1, 1)
     chain_len = 2500
@@ -184,7 +203,7 @@ def main():
     with open("sampling_comparison_orthogonal.numpy", 'w') as f:
         json.dump(res, f)
             
-
+    
     """
     #comment out decorator for sample.uniform before plotting
     sample =Sample(100, 0, 100, 0, 100)    
