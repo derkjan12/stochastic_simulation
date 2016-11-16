@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+import json
 #import seaborn as sns
 
 class points_to_complex():
@@ -13,7 +15,7 @@ class points_to_complex():
         return [complex(*point) for point in self.f(*args)] 
 
 
-class SampleMethods():
+class Sample():
     def __init__(self, min_real, max_real, min_im, max_im):
         if min_real>max_real or min_im>max_im:
             raise ValueError("min should not be bigger than max")
@@ -32,22 +34,25 @@ class SampleMethods():
         return self.position_to_points(list(zip(
             np.arange(0, num_points, 1),
             np.random.permutation(np.arange(0, num_points, 1))
-        )))
+        )), num_points)
         
     def latin_orthogonal_square(self, num_points, mini_squares_len = 10):
-        number_of_squares_x = number_of_squares_y = num_points/mini_squares_len
+        if num_points%mini_squares_len != 0:
+            raise ValueError("number_of_points must be a multiple of mini_square length")
+        
+        number_of_squares_x = number_of_squares_y = num_points//mini_squares_len
         x_arr = np.array([np.random.permutation(np.arange(0, mini_squares_len, 1)) 
                          for i in range(number_of_squares_x)])
         y_arr = np.array([np.random.permutation(np.arange(0, mini_squares_len, 1)) 
                          for i in range(number_of_squares_y)])
         positions = []
-        for i in range(10):
-            for j in range(10):
-                pos_real = j + 10*i 
-                pos_im = x_arr[i, j] * 10 + y_arr[x_arr[i][j], i]
+        for i in range(number_of_squares):
+            for j in range(mini_square_len):
+                pos_real = j + number_of_squares*i 
+                pos_im = x_arr[i, j]*10 + y_arr[x_arr[i][j], i]
                 positions.append((pos_real, pos_im))
 
-        return self.position_to_points(positions)
+        return self.position_to_points(positions, num_points)
     
     def plot_sampling(self, positions, title):
         """plots the position given"""
@@ -63,22 +68,21 @@ class SampleMethods():
     def get_area(self):
         return (self.max_real-self.min_real) * (self.max_im-self.min_im) 
     
-    @points_to_complex
-    def position_to_points(self, positions, random):
+    def position_to_points(self, positions, num_points, random=0.5):
         """transform a list with tuples with relative positions to a
            list with absolute positions and adds randomness
 
         params:
             random: how much randomness to add
         """
-        x_factor = (1/self.num_points) * (self.max_real-self.min_real)
-        y_factor = (1/self.num_points) * (self.max_im-self.min_im)
+        x_factor = (1/num_points) * (self.max_real-self.min_real)
+        y_factor = (1/num_points) * (self.max_im-self.min_im)
         points = [] 
         for position in positions: 
-            points.append((x_factor*position[0] + np.random.uniform(-random, random, 1),
-                           y_factor*position[1] + np.random.uniform(-random, random, 1)))
+            points.append((self.min_real + x_factor*position[0] + np.random.uniform(-random, random, 1),
+                           self.min_im + y_factor*position[1] + np.random.uniform(-random, random, 1)))
 
-        return points
+        return [complex(*point) for point in points]
 
 def in_mandelbrot(point, iterations):
     """determines whether point is in mandelbrot set"""
@@ -91,8 +95,8 @@ def in_mandelbrot(point, iterations):
     return True
 
 def plot_mandelbrot():
-    real_range = 1000
-    im_range = 1000
+    real_range = 800
+    im_range = 800
     grid = np.zeros((real_range, im_range))
     start_point = complex(-2, -2)
     for i in range(im_range):
@@ -100,11 +104,11 @@ def plot_mandelbrot():
             print(i)
         for j in range(real_range):
             point = start_point + complex((4/real_range)*j, (4/im_range)*i)
-            grid[i,j] = 1 if in_mandelbrot(point, 50000) else 0 
+            grid[i,j] = 1 if in_mandelbrot(point, 200000) else 0 
 
     plt.imshow(grid, cmap='bone', extent= (-2,2,-2,2))
-    plt.xlabel("imagenary axis")
-    plt.ylabel("real axis")
+    plt.xlabel("real axis")
+    plt.ylabel("imagenary axis")
     plt.title("Mandelbrot set")
     plt.show()
 
@@ -115,28 +119,75 @@ def estimate_area(points, chain_length, total_area):
     
     return correct/len(points) * total_area
 
-def batch_sampling_area(batches, samples, chain_length, total_area, sample_func, *args):
-    "samples in batches of func(*args) returns mean and std"
+def batch_sampling_area(batch_size, sample_size, chain_length, total_area, sample_func, *args):
+    "samples in batches of func(*args) returns mean and std"    
     outcomes = []
-    for i in range(batches):
-        print(i)
-        for j in range(samples):
-            points = sample_func()
-            outcomes.append(estimate_area(points, chain_length, total_area)) 
+    for i in range(batch_size):
+        print(i, end=" ", flush=True)
+        temp = []
+        for j in range(sample_size):
+            points = sample_func(*args)
+            temp.append(estimate_area(points, chain_length, total_area))
+        outcomes.append(temp) 
     
-    return np.mean(outcomes), np.std(outcomes)
+    return outcomes
 
+def compare_areas():
+    sample_size, batch_size = 30, 30
+    chain_length = 10000
+    sample = Sample(-2, 2, -2, max_im=2)
+    
+    start = time.time()
+
+    area = sample.get_area()    
+    mean_li = np.zeros(10)
+    std_li = np.zeros(10)
+    amount = 100
+    #for i in range(10):
+    #    mean_li[i], std_li[i] = batch_sampling_area(batch_size, sample_size, amount*(i+1), amount*(i+1), area, sample.uniform_random)    
+
+    with open("stats/uniform_sampling_batch_spec_range", 'w') as f:
+        json.dump([list(mean_li), list(std_li)], f)                
+
+    print(batch_sampling_area(batch_size, sample_size, 100000, 100, area, sample.uniform_random))    
+    print("time: {}".format(time.time()-start))
+    
+def chain_length_vs_sample_points():
+    sample = Sample(-2, 1, -1, max_im=1)    
+    area = sample.get_area()    
+    sample_size = 50 
+    amount_of_points_li = [10, 50, 100, 500, 1000, 5000, 10000]    
+    chain_length_li = [10, 50, 100, 500, 1000, 5000, 10000, 50000]
+    
+    area_estimate = np.zeros((len(amount_of_points_li), len(chain_length_li), 2))
+    for i, number_points in enumerate(amount_of_points_li):    
+        print(i)
+        for j, chain_len in enumerate(chain_length_li):
+            area_estimate[i, j] = batch_sampling_area(1, sample_size, chain_len, number_points, area, sample.uniform_random)
+                             
+    with open("stats/chain_length_vs_num_points.json", 'w') as f:
+        np.save(f, area_estimate)
 
 def main():
-    chain_length = 10000
-    sample = SampleMethods(10, -2, 2, -2, max_im=2)
-    sample_func = sample.uniform_random
-    print(batch_sampling_area(100, 1000, 10000, sample.get_area(), sample_func, sample))      
-    
-    #plot_mandelbrot()
+    sample_size = 50 
+    sample = Sample(-2, 1, -1, 1)
+    chain_len = 2500
+    number_points_li = [500, 1000, 2000, 4000, 8000]
+    result_li = []    
+    for number_points in number_points_li:    
+        result_li.append(batch_sampling_area(
+            1, sample_size, chain_len, sample.get_area(), 
+            sample.latin_orthogonal_square, number_points, int(50)
+        )[0])
+
+    res = [list(np.mean(result_li, axis=1)), list(np.std(result_li, axis=1))]
+    with open("sampling_comparison_orthogonal.numpy", 'w') as f:
+        json.dump(res, f)
+            
+
     """
     #comment out decorator for sample.uniform before plotting
-    sample =SampleMethods(100, 0, 100, 0, 100)    
+    sample =Sample(100, 0, 100, 0, 100)    
     sample.plot_sampling(list(sample.uniform_random()), 
                          "uniform sampling for a 100 by 100 grid")
     """    
