@@ -32,10 +32,10 @@ class Sample():
 
     @staticmethod
     def latin_square(num_points):
-        return self.position_to_points(list(zip(
+        return list(zip(
             np.arange(0, num_points, 1),
             np.random.permutation(np.arange(0, num_points, 1))
-        )), num_points)
+        ))
         
     @staticmethod
     def latin_orthogonal_square(num_points, mini_squares_len = 10):
@@ -61,7 +61,6 @@ class Sample():
             
             second_mat.append(row_second_mat)
 
-        print(second_mat)
         positions = []
         for i, row in enumerate(second_mat):
             li = list(np.random.permutation(np.arange(mini_squares_len*i, mini_squares_len*(i+1), 1)))
@@ -91,12 +90,14 @@ class Sample():
         params:
             random: how much randomness to add
         """
-        x_factor = (1/num_points) * (self.max_real-self.min_real)
-        y_factor = (1/num_points) * (self.max_im-self.min_im)
+        
+        #print("random is {}".format(random))
+        x_factor = (1/(num_points-1)) * (self.max_real-self.min_real)
+        y_factor = (1/(num_points-1)) * (self.max_im-self.min_im)
         points = [] 
         for position in positions: 
-            points.append((self.min_real + x_factor*position[0] + np.random.uniform(-random, random, 1),
-                           self.min_im + y_factor*position[1] + np.random.uniform(-random, random, 1)))
+            points.append((self.min_real + x_factor* (position[0]+np.random.uniform(-random, random, 1)),
+                           self.min_im + y_factor* (position[1]+np.random.uniform(-random, random, 1))))
 
         return [complex(*point) for point in points]
 
@@ -135,14 +136,15 @@ def estimate_area(points, chain_length, total_area):
     
     return correct/len(points) * total_area
 
-def batch_sampling_area(batch_size, sample_size, chain_length, total_area, sample_func, *args):
+def batch_sampling_area(sample, batch_size, sample_size, chain_length, total_area, sample_func, *args):
     "samples in batches of func(*args) returns mean and std"    
     outcomes = []
     for i in range(batch_size):
         print(i, end=" ", flush=True)
         temp = []
         for j in range(sample_size):
-            points = sample_func(*args)
+            #points = sample_func(*args)            
+            points = sample.position_to_points(sample_func(*args), args[0])
             temp.append(estimate_area(points, chain_length, total_area))
         outcomes.append(temp) 
     
@@ -179,31 +181,34 @@ def chain_length_vs_sample_points():
     for i, number_points in enumerate(amount_of_points_li):    
         print(i)
         for j, chain_len in enumerate(chain_length_li):
-            area_estimate[i, j] = batch_sampling_area(1, sample_size, chain_len, number_points, area, sample.uniform_random)
-                             
-    with open("stats/chain_length_vs_num_points.json", 'w') as f:
+            temp = batch_sampling_area(1, sample_size, chain_len, area, sample.uniform_random, number_points)[0]
+            area_estimate[i, j] = np.mean(temp), np.std(temp)                
+    with open("stats/chain_length_vs_num_points.np", 'wb') as f:
         np.save(f, area_estimate)
 
 def main():
     #Sample.plot_sampling(Sample.latin_orthogonal_square(200, 40), "tada")
     
-        
+    #chain_length_vs_sample_points()
+    
+    
     sample_size = 50 
     sample = Sample(-2, 1, -1, 1)
-    chain_len = 2500
+    chain_len = 10000
     number_points_li = [500, 1000, 2000, 4000, 8000]
     result_li = []    
     for number_points in number_points_li:    
         result_li.append(batch_sampling_area(
-            1, sample_size, chain_len, sample.get_area(), 
-            sample.latin_orthogonal_square, number_points, int(50)
+            sample, 1, sample_size, chain_len, sample.get_area(), 
+            sample.latin_orthogonal_square, number_points, number_points//10
         )[0])
 
+    print(result_li)
     res = [list(np.mean(result_li, axis=1)), list(np.std(result_li, axis=1))]
-    with open("sampling_comparison_orthogonal.numpy", 'w') as f:
+    with open('sampling_comparison_ortho.json', 'w') as f:
         json.dump(res, f)
             
-    
+
     """
     #comment out decorator for sample.uniform before plotting
     sample =Sample(100, 0, 100, 0, 100)    
