@@ -68,8 +68,8 @@ def set_waiting_times(burn_in_time, number_of_customers, capacity, arrival_time_
 if __name__=='__main__':
     burn_in_time = 0
     number_of_customers = 10
-    capacity = 1
-    set_waiting_times(burn_in_time, 10, 1, get_arrival_times(get_exponential, 0.8), 
+    capacity = 2
+    set_waiting_times(burn_in_time, 10, 1, get_arrival_times(get_exponential, 1.6), 
                       get_service_times(get_exponential, 1))
 
     print(wait_times)
