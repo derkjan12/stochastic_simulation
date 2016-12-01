@@ -35,7 +35,7 @@ wait_times = []
 
 class SimulateQueue():
     def __init__(self, burn_in_time):
-        self.wait_times = []            
+        self.waiting_times = []            
         self.burn_in_time = burn_in_time
 
     def customer(self, env, count, counters, service_time, create_time, service_mode):
@@ -49,8 +49,8 @@ class SimulateQueue():
         with counters.request(priority=priority) as req:
             yield req
             end = env.now
-            if env.now > self.burn_in_time:
-                self.wait_times.append(end-start)
+            if count >= self.burn_in_time:
+                self.waiting_times.append(end-start)
             #print("customer {} being served at {} wait time was {}".format(
             #    count, env.now, end-start)
             #)
@@ -78,22 +78,29 @@ class SimulateQueue():
 
         env.run()
 
-def simulate_RBM(batches, replications, burn_in_time, args_to_set_waiting_times):
+def simulate_RBM(batch_size, replications, burn_in_time, dict_args_to_set_waiting_times):
     """ Use RBM sampling and return estimate of the mean and standard variance"""
+    num_customers = dict_args_to_set_waiting_times['number_of_customers']
+    samples = num_customers - burn_in_time    
     mean_waiting_times_li = []    
-    batch_size = int(args_to_set_waiting_times[0]/batches)
     for i in range(replications):
         sim_queue = SimulateQueue(burn_in_time)
-        sim_queue.set_waiting_times(*args_to_set_waiting_times)
-        wait_times_list = [] 
-        for i in range(batches-1):
-            wait_times_list.append(
-                sim_queue.waiting_times[batch_size*i:batch_size*(i+1)]
-            )           
-        wait_times_list.append(
-            sim_queue.waiting_times[batch_size*(batches-1):]
-        ) 
-        mean_waiting_times_li.append(np.mean(wait_times_list, 0))
+        sim_queue.set_waiting_times(**dict_args_to_set_waiting_times)
+        wait_times = sim_queue.waiting_times
+        if len(sim_queue.waiting_times) != samples:
+            raise ValueError("incorrect amount of samples taken")         
+        if samples%batch_size == 0:        
+            batched_waiting_times = [wait_times[i*batch_size:(i+1)*batch_size] 
+                                     for i in range(int(samples/batch_size))]       
+        else:
+            print("not divisble number of samples")
+            whole_batches = int(samples/batch_size)        
+            batched_waiting_times = [wait_times[i*batch_size:(i+1)*batch_size] 
+                                     for i in range(whole_batches)]
+            for count, sample in enumerate(wait_times[int(whole_batches*batch_size):]):
+                batched_waiting_times[count].extend([sample])
+
+        mean_waiting_times_li.extend([np.mean(li) for li in batched_waiting_times])
 
     return np.mean(mean_waiting_times_li), np.std(mean_waiting_times_li) 
 
@@ -103,13 +110,23 @@ if __name__=='__main__':
         used to calculate the arrival rate
     """
 
+    args_dict = {
+        'number_of_customers':100000,
+        'capacity':1,
+        'arrival_time_gen':get_arrival_times(get_exponential, 0.80),
+        'service_time_gen':get_service_times(get_exponential, 1),
+        'service_mode':'FIFO'
+    }
+
+    print(simulate_RBM(batch_size=10000, replications=5, burn_in_time=10000, dict_args_to_set_waiting_times=args_dict))
+
     sim_queue = SimulateQueue(0)
-    sim_queue.set_waiting_times(number_of_customers=10, capacity=2, 
+    sim_queue.set_waiting_times(number_of_customers=11, capacity=2, 
         arrival_time_gen=get_arrival_times(get_exponential, 1.95),
         service_time_gen=get_service_times(get_exponential, 1), 
         service_mode ='FIFO'
     )
 
-    print(sim_queue.wait_times)
+    #print(sim_queue.waiting_times)
 
 
