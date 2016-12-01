@@ -4,6 +4,7 @@ import math
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
+import collections
 
 def get_arrival_times(inter_arrival_time_func, *args):
     last_arrival_time = 0    
@@ -145,24 +146,26 @@ def batch_sample_load(file_name, load_li, batch_size, replications,
     with open(file_name, 'w') as f:
         json.dump(mean_std_per_load_dict, f, indent=2)
 
-def plot_mean_std(data1, title, x_label, y_label, data2=None):
+def plot_mean_std(plot_range, mean_li, std_li, title, x_label, y_label, data2=None):
     """creates a plot displaying mean and standard deviation of data1
        and displaying data2 as a line 
 
     params:
-        data1: a dict where every key is the data point and every value 
-            consist of an iterable containing mean and standard devation
-        data2: list with values for same plotrange data1
+        data2: list with values for same plotrange
     """
-    plot_range = list(data1.keys()) 
-    mean_li = zip(data1.values())[0]
-    std_li = zip(data1.values())[1]
+
+    plot_range = np.array([float(i) for i in plot_range])
+    lower_bound = np.array(mean_li) - 1.96*np.array(std_li)
+    upper_bound = np.array(mean_li) + 1.96*np.array(std_li)
+
+    print(plot_range)
+    print(lower_bound)
+    print(upper_bound)
 
     plt.plot(plot_range, mean_li, label='average_waiting_time')
     if data2 is not None:
         plt.plot(plot_range, data2, label='theoretical_estimate')
-    plt.fill_between(plot_range, mean_data_points - 1.96*std_data_points,
-                     mean_data_points + 1.96*std_data_points,
+    plt.fill_between(plot_range, lower_bound, upper_bound, 
                      label='standard deviation', alpha=0.2)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
@@ -170,6 +173,15 @@ def plot_mean_std(data1, title, x_label, y_label, data2=None):
     plt.title(title)
     plt.show()
 
+def get_plotting_data(file_name):
+    with open('MM1_FIFO_ex1.json', 'r') as f:
+        dict_val = json.load(f)
+        
+    ord_dict_val = collections.OrderedDict(sorted(dict_val.items(), key= lambda x: x[0]))
+    plot_range = list(ord_dict_val.keys()) 
+    mean_li = list(list(zip(*ord_dict_val.values()))[0])
+    std_li = list(list(zip(*ord_dict_val.values()))[1])
+    return plot_range, mean_li, std_li
 
 if __name__=='__main__':
     """
@@ -177,6 +189,7 @@ if __name__=='__main__':
         used to calculate the arrival rate
     """
 
+    """
     args_dict = {
         'number_of_customers':110000,
         'capacity':1,
@@ -188,6 +201,12 @@ if __name__=='__main__':
 
     batch_sample_load("MM1_FIFO_ex1.json", load_li, batch_size=10000, replications=5, 
                       burn_in_time=10000, args_set_waiting_times=args_dict)
+
+    """
+    
+    title = "M/M/1 queue FIFO scheduling average waiting times "
+    plot_mean_std(*get_plotting_data("MM1_FIFO_ex1.json"), title, "loads", 
+                  "average_waiting_times")
 
     """
     print(simulate_RBM(batch_size=50000, replications=5, burn_in_time=20000, 
