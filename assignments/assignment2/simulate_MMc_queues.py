@@ -1,5 +1,9 @@
 import simpy
 import numpy as np
+import math
+import json
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def get_arrival_times(inter_arrival_time_func, *args):
     last_arrival_time = 0    
@@ -78,6 +82,23 @@ class SimulateQueue():
 
         env.run()
 
+def get_chance_to_wait_MMc(load, c):
+    """calculate the chance that you have to wait at all
+
+    params:
+        load: the load in the system- arrival rate/(servers*service_rate)
+        c: amount of servers in the system 
+    """
+    first = ((c*load)**c)/math.factorial(c)
+    second = (1-load) * sum([((c*load)**n)/math.factorial(n) for n in range(c)])
+    #print([((c*load)**n)/math.factorial(n) for n in range(c-1)])
+    #print("first {} second {}".format(first, second))
+    return (first/(second+first))
+
+def get_theoretical_average_waiting_time_MMc(load, servers, service_rate):
+    chance_to_wait = get_chance_to_wait_MMc(load, servers)
+    return chance_to_wait * (1/(1-load)) * (1/(servers*service_rate))
+
 def simulate_RBM(batch_size, replications, burn_in_time, dict_args_to_set_waiting_times):
     """ Use RBM sampling and return estimate of the mean and standard variance"""
     num_customers = dict_args_to_set_waiting_times['number_of_customers']
@@ -97,12 +118,58 @@ def simulate_RBM(batch_size, replications, burn_in_time, dict_args_to_set_waitin
             whole_batches = int(samples/batch_size)        
             batched_waiting_times = [wait_times[i*batch_size:(i+1)*batch_size] 
                                      for i in range(whole_batches)]
-            for count, sample in enumerate(wait_times[int(whole_batches*batch_size):]):
-                batched_waiting_times[count].extend([sample])
+            #for count, sample in enumerate(wait_times[int(whole_batches*batch_size):]):
+            #    batched_waiting_times[count].extend([sample])
 
         mean_waiting_times_li.extend([np.mean(li) for li in batched_waiting_times])
 
     return np.mean(mean_waiting_times_li), np.std(mean_waiting_times_li) 
+
+def batch_sample_load(file_name, load_li, batch_size, replications, 
+                      burn_in_time, args_set_waiting_times):
+    """estimates mean and std waiting time using RBM sampling writes output to file
+        
+    params:
+        load_li: list with loads to sample from
+    """
+    
+    mean_std_per_load_dict = {}
+    for load in load_li:
+        args_set_waiting_times['arrival_time_gen'] = get_arrival_times(
+            get_exponential, load * args_set_waiting_times['capacity'] 
+        )
+        mean_std_per_load_dict[load] = simulate_RBM(
+            batch_size, replications, burn_in_time, args_set_waiting_times
+        )
+    
+    with open(file_name, 'w') as f:
+        json.dump(mean_std_per_load_dict, f, indent=2)
+
+def plot_mean_std(data1, title, x_label, y_label, data2=None):
+    """creates a plot displaying mean and standard deviation of data1
+       and displaying data2 as a line 
+
+    params:
+        data1: a dict where every key is the data point and every value 
+            consist of an iterable containing mean and standard devation
+        data2: list with values for same plotrange data1
+    """
+    plot_range = list(data1.keys()) 
+    mean_li = zip(data1.values())[0]
+    std_li = zip(data1.values())[1]
+
+    plt.plot(plot_range, mean_li, label='average_waiting_time')
+    if data2 is not None:
+        plt.plot(plot_range, data2, label='theoretical_estimate')
+    plt.fill_between(plot_range, mean_data_points - 1.96*std_data_points,
+                     mean_data_points + 1.96*std_data_points,
+                     label='standard deviation', alpha=0.2)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+    plt.title(title)
+    plt.show()
+
 
 if __name__=='__main__':
     """
@@ -111,15 +178,21 @@ if __name__=='__main__':
     """
 
     args_dict = {
-        'number_of_customers':100000,
+        'number_of_customers':110000,
         'capacity':1,
-        'arrival_time_gen':get_arrival_times(get_exponential, 0.80),
+        'arrival_time_gen':get_arrival_times(get_exponential, 1.90),
         'service_time_gen':get_service_times(get_exponential, 1),
         'service_mode':'FIFO'
     }
+    load_li = np.arange(0.1, 1, 0.1)
 
-    print(simulate_RBM(batch_size=10000, replications=5, burn_in_time=10000, dict_args_to_set_waiting_times=args_dict))
+    batch_sample_load("MM1_FIFO_ex1.json", load_li, batch_size=10000, replications=5, 
+                      burn_in_time=10000, args_set_waiting_times=args_dict)
 
+    """
+    print(simulate_RBM(batch_size=50000, replications=5, burn_in_time=20000, 
+          dict_args_to_set_waiting_times=args_dict))
+        
     sim_queue = SimulateQueue(0)
     sim_queue.set_waiting_times(number_of_customers=11, capacity=2, 
         arrival_time_gen=get_arrival_times(get_exponential, 1.95),
@@ -128,5 +201,5 @@ if __name__=='__main__':
     )
 
     #print(sim_queue.waiting_times)
-
+    """
 
