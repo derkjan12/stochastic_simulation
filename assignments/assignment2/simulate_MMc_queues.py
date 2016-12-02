@@ -193,16 +193,16 @@ if __name__=='__main__':
 
     args_dict = {
         'number_of_customers':110000,
-        'capacity':1,
+        'capacity':4,
         'arrival_time_gen':get_arrival_times(get_exponential, 1.90),
-        'service_time_gen':get_service_times(get_hyper_exponential, 2, 1/3, 0.8),
+        'service_time_gen':get_service_times(get_deterministic, 1),
         'service_mode':'FIFO'
     }
 
     load_li = np.arange(0.1, 1, 0.1)
     #load_li_hyper_exponential = np.arange(0.1,1,0.1)/2
 
-    batch_sample_load("MM1_FIFO_0.1_0.9_long_tail_service_times.json",
+    batch_sample_load("MD4_FIFO_0.1_0.9.json",
                       load_li, batch_size=10000, replications=5, 
                       burn_in_time=10000, args_set_waiting_times=args_dict)
 
