@@ -44,25 +44,27 @@ class SimulatedAnnealingTSP():
 
     @staticmethod 
     def permute_lin_2_op(route):
-        num1 = np.random.choice(np.arange(0, route.shape[0], 1))
-        num2 = np.random.choice(np.arange(0, route.shape[0], 1))
+        num1 = np.random.choice(np.arange(1, route.shape[0], 1))
+        num2 = np.random.choice(np.arange(1, route.shape[0], 1))
         while np.absolute(num1-num2) < 2:
             num2 = np.random.choice(np.arange(0, route.shape[0], 1))
-            
+        
+        if num1>num2:
+            num1, num2 = num2, num1
         new_route = np.copy(route)
         new_route[num1:num2] = new_route[num1:num2][::-1]
         return new_route
 
 if __name__=='__main__':
-    tsp = travelling_sales_person.TravellingSalesPerson('test.tsp.txt')
+    tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
     params = {
-        'initial_temp': tsp.TSP_dict["DIMENSION"]*4 / -np.log(0.8),
-        'rate': 0.95
+        'initial_temp': tsp.TSP_dict["DIMENSION"]*30 / -np.log(0.8),
+        'rate': 0.999
     }
         
     cooling_gen = cooling_linear_gen(params['initial_temp'], params['rate'])
     sa = SimulatedAnnealingTSP(tsp, cooling_gen)
-    sa.simulate(1000)
+    sa.simulate(60000)
     print(sa.route)
     print(tsp.get_distance_route(sa.route))
     

@@ -19,9 +19,13 @@ class TravellingSalesPerson():
                 elif line != 'EOF' and line != 'NODE_COORD_SECTION':
                     name, coor1, coor2 = line.split(' ') 
                     self.city_dict[name] = (float(coor1), float(coor2))
-        if self.TSP_dict['DIMENSION'] == len(self.city_dict.keys()):
+        self.TSP_dict['DIMENSION'] = int(self.TSP_dict.get(
+            'DIMENSION', len(self.city_dict.keys())
+        ))
+        if self.TSP_dict['DIMENSION'] != len(self.city_dict.keys()):
             raise ValueError('mismatch dimensions')
-        self.distances = np.full((int(self.TSP_dict['DIMENSION']), int(self.TSP_dict['DIMENSION'])),
+        self.distances = np.full((int(self.TSP_dict['DIMENSION']),
+                                 int(self.TSP_dict['DIMENSION'])),
                                 -1, dtype=float)
         self.distance_dict = {k:{} for k in self.city_dict.keys()}
     
@@ -47,6 +51,22 @@ class TravellingSalesPerson():
             total_distance += self.get_distance(route[i], route[i+1])  
         return total_distance + self.get_distance(route[0], route[-1])
 
+    def set_route(self, file_name):
+        self.route = []
+        with open(file_name, 'r') as f:
+            description = True
+            for line in f:
+                line = line.rstrip('\n')
+                if line == 'TOUR_SECTION':
+                    description = False
+                if description:
+                    #set characteristics
+                    key, value = line.split(':')
+                    self.TSP_dict[key.rstrip(' ')] = value
+                elif line != 'EOF' and line != 'TOUR_SECTION':
+                    if not '-' in line: 
+                        self.route.append(str(line).strip(' ')) 
+
 if __name__ == '__main__':
     tsp = TravellingSalesPerson('test.tsp.txt')   
     print(tsp.TSP_dict )
@@ -54,3 +74,8 @@ if __name__ == '__main__':
     print(tsp.distance_dict)
     tsp.get_distance('1', '2')
     print(tsp.distance_dict)
+    print('new_route')
+    tsp = TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt') 
+    tsp.set_route('TSP-Configurations/eil51.opt.tour.txt')
+    print(tsp.route)
+    print(tsp.get_distance_route(tsp.route))
