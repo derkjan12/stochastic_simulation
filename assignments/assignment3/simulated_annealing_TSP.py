@@ -19,6 +19,7 @@ def cooling_log_gen(C):
     while True:
         temp = C * np.log(count+1)
         yield 1/temp
+        count += 1
 
 class SimulatedAnnealingTSP():
     def __init__(self, tsp, cooling_gen):
@@ -26,6 +27,10 @@ class SimulatedAnnealingTSP():
        self.route = np.array(list(tsp.city_dict.keys()))
        self.route = np.random.permutation(self.route)
        self.cooling_gen = cooling_gen
+
+    def initialise(self):
+        self.route = np.array(list(tsp.city_dict.keys()))
+        self.route = np.random.permutation(self.route)
 
     def simulate(self, steps):
         distance = self.tsp.get_distance_route(self.route)
@@ -46,7 +51,7 @@ class SimulatedAnnealingTSP():
     def permute_lin_2_op(route):
         num1 = np.random.choice(np.arange(1, route.shape[0], 1))
         num2 = np.random.choice(np.arange(1, route.shape[0], 1))
-        while np.absolute(num1-num2) < 2:
+        while np.absolute(num1-num2) < 1:
             num2 = np.random.choice(np.arange(0, route.shape[0], 1))
         
         if num1>num2:
@@ -55,16 +60,27 @@ class SimulatedAnnealingTSP():
         new_route[num1:num2] = new_route[num1:num2][::-1]
         return new_route
 
+    def get_initial_temp(self, num_samples=100):
+        route = np.array(list(tsp.city_dict.keys()))
+        samples = np.zeros(num_samples)
+        for i in range(num_samples):
+            route = np.random.permutation(self.route)
+            samples[i]=self.tsp.get_distance_route(route)
+
+        return 2*np.std(samples) / -np.log(0.8)
+
 if __name__=='__main__':
     tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
     params = {
-        'initial_temp': tsp.TSP_dict["DIMENSION"]*30 / -np.log(0.8),
-        'rate': 0.999
+        'initial_temp':1200,
+        'rate': 0.99995
     }
         
-    cooling_gen = cooling_linear_gen(params['initial_temp'], params['rate'])
-    sa = SimulatedAnnealingTSP(tsp, cooling_gen)
-    sa.simulate(60000)
+    cooling_gen_lin = cooling_linear_gen(params['initial_temp'], params['rate'])
+    cooling_gen_log = cooling_log_gen(1/params['initial_temp'])
+    sa = SimulatedAnnealingTSP(tsp, cooling_gen_lin)
+    sa.simulate(300000)
+    print(sa.get_initial_temp())
     print(sa.route)
     print(tsp.get_distance_route(sa.route))
     
