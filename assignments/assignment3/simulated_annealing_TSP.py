@@ -1,4 +1,6 @@
 import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
 import travelling_sales_person
 
 def cooling_linear_gen(initial_T, rate):
@@ -49,15 +51,17 @@ class SimulatedAnnealingTSP():
 
     @staticmethod 
     def permute_lin_2_op(route):
-        num1 = np.random.choice(np.arange(1, route.shape[0], 1))
-        num2 = np.random.choice(np.arange(1, route.shape[0], 1))
-        while np.absolute(num1-num2) < 1:
-            num2 = np.random.choice(np.arange(0, route.shape[0], 1))
+        cities = np.arange(0, route.shape[0], 1)
+        num1 = np.random.choice(cities)
+        num2 = np.random.choice(cities)
+        while np.absolute(num1-num2)<1 or np.absolute(num1-num2)==route.shape[0]: 
+            num1 = np.random.choice(cities)
+            num2 = np.random.choice(cities)
         
         if num1>num2:
             num1, num2 = num2, num1
         new_route = np.copy(route)
-        new_route[num1:num2] = new_route[num1:num2][::-1]
+        new_route[num1:num2+1] = new_route[num1:num2+1][::-1]
         return new_route
 
     def get_initial_temp(self, num_samples=100):
@@ -69,20 +73,65 @@ class SimulatedAnnealingTSP():
 
         return 2*np.std(samples) / -np.log(0.8)
 
+    def create_plot_data_distances(self, steps):
+        distances = []
+        distance = self.tsp.get_distance_route(self.route)
+        for i in range(steps):
+            new_route = self.permute_lin_2_op(self.route) 
+            distance_new = self.tsp.get_distance_route(new_route)
+            if distance_new <= distance:
+                distance = distance_new
+                self.route = new_route
+                no_change_count = 0
+            else:
+                u = np.random.uniform()
+                change_chance = np.exp((distance-distance_new) / next(self.cooling_gen))
+                if change_chance > u:
+                    distance = distance_new
+                    self.route = new_route
+                    no_change_count = 0
+                else:
+                    no_change_count += 1
+            
+            if no_change_count > 2000:
+                break
+            distances.append(distance)
+
+        return distances
+
+    def plot_distances(self, steps):
+        data = self.create_plot_data_distances(steps)
+        print(tsp.get_distance_route(self.route))
+        plt.plot(data)
+        plt.show()
+
+def simulate(tsp):
+    params_small = {
+        'initial_temp':3000,
+        'rate': 0.9999
+    }
+
+    for i in range(1):
+        print("initial tempurature: {}".format(sa.get_initial_temp()))
+        cooling_gen_lin = cooling_linear_gen(params_small['initial_temp'], 
+                                             params_small['rate'])
+        cooling_gen_log = cooling_log_gen(1/params_small['initial_temp'])
+        sa = SimulatedAnnealingTSP(tsp, cooling_gen_lin)
+        sa.simulate(int(3*10**5))
+        print("final distance {}".format(tsp.get_distance_route(sa.route)))
+ 
+
 if __name__=='__main__':
-    tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
+    #tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
+    tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/a280.tsp.txt')
+
+    simulate(tsp)
+    """
     params = {
         'initial_temp':1200,
-        'rate': 0.99995
+        'rate': 0.999975
     }
-        
     cooling_gen_lin = cooling_linear_gen(params['initial_temp'], params['rate'])
-    cooling_gen_log = cooling_log_gen(1/params['initial_temp'])
     sa = SimulatedAnnealingTSP(tsp, cooling_gen_lin)
-    sa.simulate(300000)
-    print(sa.get_initial_temp())
-    print(sa.route)
-    print(tsp.get_distance_route(sa.route))
-    
-    
-
+    sa.plot_distances(700000)
+    """

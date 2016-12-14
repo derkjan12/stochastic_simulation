@@ -7,6 +7,7 @@ class TravellingSalesPerson():
         with open(file_name, 'r') as f:
             description = True
             for line in f:
+                #print(line)
                 line = line.rstrip('\n')
                 if line == 'NODE_COORD_SECTION':
                     description = False
@@ -17,7 +18,19 @@ class TravellingSalesPerson():
                     key, value = line.split(':')
                     self.TSP_dict[key.rstrip(' ')] = value
                 elif line != 'EOF' and line != 'NODE_COORD_SECTION':
-                    name, coor1, coor2 = line.split(' ') 
+                    elem_li = []
+                    elements = line.rstrip(' ').lstrip(' ').split(' ')
+                    for count, elem in enumerate(elements):
+                        if count == 0:
+                            name = elem
+                            continue
+                        try:
+                            float(elem)
+                            elem_li.append(elem)
+                        except ValueError:
+                            pass
+                        
+                    coor1, coor2 = tuple(elem_li) 
                     self.city_dict[name] = (float(coor1), float(coor2))
         self.TSP_dict['DIMENSION'] = int(self.TSP_dict.get(
             'DIMENSION', len(self.city_dict.keys())
@@ -68,14 +81,25 @@ class TravellingSalesPerson():
                         self.route.append(str(line).strip(' ')) 
 
 if __name__ == '__main__':
+    print("the test tour started")
     tsp = TravellingSalesPerson('test.tsp.txt')   
-    print(tsp.TSP_dict )
-    print(tsp.city_dict)    
-    print(tsp.distance_dict)
-    tsp.get_distance('1', '2')
-    print(tsp.distance_dict)
-    print('new_route')
+    #print(tsp.TSP_dict )
+    #print(tsp.city_dict)    
+    #print('new_route')
+    print('the smallest tour started')
     tsp = TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt') 
     tsp.set_route('TSP-Configurations/eil51.opt.tour.txt')
-    print(tsp.route)
-    print(tsp.get_distance_route(tsp.route))
+    #print('the optimal route is:')
+    #print(tsp.route)
+    print("the optimal tour has distance {}".format(tsp.get_distance_route(tsp.route)))
+    print('the medium tour started')
+    tsp = TravellingSalesPerson('TSP-Configurations/a280.tsp.txt') 
+    tsp.set_route('TSP-Configurations/a280.opt.tour.txt')
+    print("the optimal tour has distance {}".format(tsp.get_distance_route(tsp.route)))
+    print('the large tour has started')
+    tsp = TravellingSalesPerson('TSP-Configurations/pcb442.tsp.txt') 
+    tsp.set_route('TSP-Configurations/pcb442.opt.tour.txt')
+    print("the optimal tour has distance {}".format(tsp.get_distance_route(tsp.route)))
+
+
+ 
