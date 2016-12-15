@@ -1,6 +1,8 @@
 import numpy as np 
 import matplotlib.pyplot as plt
 import seaborn as sns
+import json
+import time
 import travelling_sales_person
 
 def cooling_linear_gen(initial_T, rate):
@@ -105,27 +107,51 @@ class SimulatedAnnealingTSP():
         plt.plot(data)
         plt.show()
 
-def simulate(tsp):
+class InitialTemp():
+
+    def __init__(sample_size):
+        self.sample_size = sample_size
+
+    def get_initial_temp(self, num_samples=100):
+        route = np.array(list(tsp.city_dict.keys()))
+        samples = np.zeros(num_samples)
+        for i in range(num_samples):
+            route = np.random.permutation(self.route)
+            samples[i]=self.tsp.get_distance_route(route)
+
+        return 2*np.std(samples) / -np.log(0.8)
+
+def simulate(tsp, initial_temp, rate, steps, samples):
     params_small = {
-        'initial_temp':3000,
-        'rate': 0.9999
+        'initial_temp':initial_temp,
+        'rate': rate
     }
 
-    for i in range(1):
-        print("initial tempurature: {}".format(sa.get_initial_temp()))
+    final_distance_li = []
+    for i in range(samples):
         cooling_gen_lin = cooling_linear_gen(params_small['initial_temp'], 
                                              params_small['rate'])
-        cooling_gen_log = cooling_log_gen(1/params_small['initial_temp'])
         sa = SimulatedAnnealingTSP(tsp, cooling_gen_lin)
-        sa.simulate(int(3*10**5))
-        print("final distance {}".format(tsp.get_distance_route(sa.route)))
- 
+        start = time.time()
+        sa.simulate(steps)
+        print("simulation took {} seconds".format(time.time()-start))
+        distance = tsp.get_distance_route(sa.route)
+        print("final distance {}".format(distance))
+        final_distance_li.append(distance)
+
+    return final_distance_li
 
 if __name__=='__main__':
     #tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
     tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/a280.tsp.txt')
+    
+    distance_dict = {}
+    for init_temp in np.arange(500, 10500, 500):
+        distance_dict[init_temp] = simulate(tsp, init_temp, 0.9999, int(10**5), 30)
+        
+    with open('initial_temp_middle.json', 'w') as f:
+        json.dump(distance_dict, f)
 
-    simulate(tsp)
     """
     params = {
         'initial_temp':1200,

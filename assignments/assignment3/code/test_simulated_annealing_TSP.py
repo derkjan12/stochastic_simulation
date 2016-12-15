@@ -33,6 +33,10 @@ class TestSimulatedAnnealing(unittest.TestCase):
         sa = sim.SimulatedAnnealingTSP(self.tsp, cooling_gen)
         sa.simulate(1000)
         self.assertAlmostEqual(min_distance, self.tsp.get_distance_route(sa.route))
+
+    def test_cooling_log_gen(self):
+        cooling_log_gen = sim.cooling_log_gen(1/20)
+    
  
     def tearDown(self):
         pass
