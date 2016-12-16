@@ -1,6 +1,6 @@
 import numpy as np 
-#import matplotlib.pyplot as plt
-#import seaborn as sns
+import matplotlib.pyplot as plt
+import seaborn as sns
 import json
 import time
 import travelling_sales_person
@@ -78,6 +78,7 @@ class SimulatedAnnealingTSP():
     def create_plot_data_distances(self, steps):
         distances = []
         distance = self.tsp.get_distance_route(self.route)
+        no_change_count = 0
         for i in range(steps):
             new_route = self.permute_lin_2_op(self.route) 
             distance_new = self.tsp.get_distance_route(new_route)
@@ -96,15 +97,34 @@ class SimulatedAnnealingTSP():
                     no_change_count += 1
             
             if no_change_count > 2000:
-                break
+                pass
             distances.append(distance)
 
         return distances
 
-    def plot_distances(self, steps):
-        data = self.create_plot_data_distances(steps)
-        print(tsp.get_distance_route(self.route))
-        plt.plot(data)
+    def plot_distances(self, steps, init_temp, rate, samples=30):
+        data_li = []
+        for i in range(samples):
+            data_li.append(self.create_plot_data_distances(steps))
+            self.cooling_gen_lin = cooling_linear_gen(init_temp, rate)
+            print(i)
+
+        with open('r9000_init_temp_convergence.json', 'w') as f:
+            json.dump(data_li, f)
+
+        data = np.mean(np.array(data_li), 0)
+        plot_range = np.arange(data.shape[0])
+        print(data.shape)
+        std = np.std(np.array(data_li), 0)
+        lower_bound = data-std
+        upper_bound = data+std
+        plt.plot(plot_range, data)
+        plt.fill_between(plot_range, lower_bound, upper_bound, 
+                                     label='1 std', alpha=0.3)
+        plt.legend()
+        plt.xlabel("number of steps")
+        plt.title("average distance throughout simulated annealing ")
+        plt.ylabel("average distance")
         plt.show()
 
 class InitialTemp():
@@ -162,7 +182,7 @@ class InitialTemp():
             if np.absolute(chi_T - ratio) < epsilon:
                 return T
             else:
-                T = T * (np.log(chi_T)/np.log(ratio))**p
+                T = T * (np.log(chi_T)/np.log(ratio))**(1/p)
 
         print("the value did not converge")
         return T
@@ -223,27 +243,39 @@ def batch_mean_sampling_init_temp(tsp):
 def print_mean_std(li, name):
     print("for {} the mean is {} and the std {}".format(name, np.mean(li), np.std(li))) 
 
+def estimate_rate(initial_temp, final_temp=0.01, steps=10**5):
+    return (final_temp/initial_temp)**(1/steps)     
+
 if __name__=='__main__':
     #tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/eil51.tsp.txt')
     tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/a280.tsp.txt')
+    #tsp = travelling_sales_person.TravellingSalesPerson('TSP-Configurations/pcb442.tsp.txt')
+
     
     #batch_mean_sampling_init_temp(tsp)
+    #print(estimate_rate(500))
 
     """
     distance_dict = {}
+    steps = 10**5
+    samples = 20
     for init_temp in np.arange(500, 1500, 500):
-        distance_dict[str(init_temp)] = simulate(tsp, init_temp, 0.99, int(10**3), 10)
+        rate = estimate_rate(init_temp, steps = steps)
+        distance_dict[str(init_temp)] = simulate(tsp, init_temp, temp, steps, samples)
         
-    with open('initial_temp_middle.json', 'w') as f:
+    with open('initial_temp_middle_fixed_final_temp.json', 'w') as f:
         json.dump(distance_dict, f)
+    
     """
 
-    """
+    
+    steps = int(10**5)
     params = {
-        'initial_temp':1200,
-        'rate': 0.999975
+        'initial_temp':9000,
+        'rate': estimate_rate(9000, steps=10**5) 
     }
     cooling_gen_lin = cooling_linear_gen(params['initial_temp'], params['rate'])
     sa = SimulatedAnnealingTSP(tsp, cooling_gen_lin)
-    sa.plot_distances(700000)
-    """
+    sa.plot_distances(steps, params['initial_temp'], params['rate'])
+    
+
